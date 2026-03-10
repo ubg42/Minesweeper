@@ -2,11 +2,13 @@
 var bombImage = '<img src="images/bomb.png">';
 var flagImage = '<img src="images/flag.png">';
 var wrongBombImage = '<img src="images/wrong-bomb.png">'
+
 var sizeLookup = {
   '9': {totalBombs: 10, tableWidth: '245px'},
   '16': {totalBombs: 40, tableWidth: '420px'},
   '30': {totalBombs: 160, tableWidth: '794px'}
 };
+
 var colors = [
   '',
   '#0000FA',
@@ -42,16 +44,21 @@ document.getElementById('size-btns').addEventListener('click', function(e) {
 
 boardEl.addEventListener('click', function(e) {
   if (winner || hitBomb) return;
-  var clickedEl;
-  clickedEl = e.target.tagName.toLowerCase() === 'img' ? e.target.parentElement : e.target;
+
+  var clickedEl = e.target.tagName.toLowerCase() === 'img'
+    ? e.target.parentElement
+    : e.target;
+
   if (clickedEl.classList.contains('game-cell')) {
+
     if (!timerId) setTimer();
+
     var row = parseInt(clickedEl.dataset.row);
     var col = parseInt(clickedEl.dataset.col);
     var cell = board[row][col];
-    if (e.shiftKey && !cell.revealed && bombCount > 0) {
-      bombCount += cell.flag() ? -1 : 1;
-    } else {
+
+    // LEFT CLICK = reveal only
+    if (!cell.revealed) {
       hitBomb = cell.reveal();
       if (hitBomb) {
         revealAll();
@@ -59,12 +66,36 @@ boardEl.addEventListener('click', function(e) {
         e.target.style.backgroundColor = 'red';
       }
     }
+
     winner = getWinner();
     render();
   }
 });
 
-function createResetListener() { 
+/*----- NEW: Right‑click flagging -----*/
+boardEl.addEventListener('contextmenu', function(e) {
+  e.preventDefault(); // disable browser menu
+
+  if (winner || hitBomb) return;
+
+  var clickedEl = e.target.tagName.toLowerCase() === 'img'
+    ? e.target.parentElement
+    : e.target;
+
+  if (clickedEl.classList.contains('game-cell')) {
+    var row = parseInt(clickedEl.dataset.row);
+    var col = parseInt(clickedEl.dataset.col);
+    var cell = board[row][col];
+
+    if (!cell.revealed) {
+      bombCount += cell.flag() ? -1 : 1;
+      winner = getWinner();
+      render();
+    }
+  }
+});
+
+function createResetListener() {
   document.getElementById('reset').addEventListener('click', function() {
     init();
     render();
@@ -75,7 +106,8 @@ function createResetListener() {
 function setTimer () {
   timerId = setInterval(function(){
     elapsedTime += 1;
-    document.getElementById('timer').innerText = elapsedTime.toString().padStart(3, '0');
+    document.getElementById('timer').innerText =
+      elapsedTime.toString().padStart(3, '0');
   }, 1000);
 };
 
@@ -88,8 +120,8 @@ function revealAll() {
 };
 
 function buildTable() {
-  var topRow = `
-  <tr>
+  var topRow =
+  `<tr>
     <td class="menu" id="window-title-bar" colspan="${size}">
       <div id="window-title"><img src="images/mine-menu-icon.png"> Minesweeper</div>
       <div id="window-controls"><img src="images/window-controls.png"></div>
@@ -101,19 +133,24 @@ function buildTable() {
     </td>
   </tr>
   </tr>
-    <tr>
-      <td class="menu" colspan="${size}">
-          <section id="status-bar">
-            <div id="bomb-counter">000</div>
-            <div id="reset"><img src="images/smiley-face.png"></div>
-            <div id="timer">000</div>
-          </section>
-      </td>
-    </tr>
-    `;
-  boardEl.innerHTML = topRow + `<tr>${'<td class="game-cell"></td>'.repeat(size)}</tr>`.repeat(size);
+  <tr>
+    <td class="menu" colspan="${size}">
+      <section id="status-bar">
+        <div id="bomb-counter">000</div>
+        <div id="reset"><img src="images/smiley-face.png"></div>
+        <div id="timer">000</div>
+      </section>
+    </td>
+  </tr>`;
+
+  boardEl.innerHTML =
+    topRow +
+    `<tr>${'<td class="game-cell"></td>'.repeat(size)}</tr>`.repeat(size);
+
   boardEl.style.width = sizeLookup[size].tableWidth;
+
   createResetListener();
+
   var cells = Array.from(document.querySelectorAll('td:not(.menu)'));
   cells.forEach(function(cell, idx) {
     cell.setAttribute('data-row', Math.floor(idx / size));
@@ -135,7 +172,9 @@ function buildCells(){
       board[rowIdx][colIdx] = new Cell(rowIdx, colIdx, board);
     });
   });
+
   addBombs();
+
   runCodeForAllCells(function(cell){
     cell.calcAdjBombs();
   });
@@ -164,62 +203,74 @@ function getBombCount() {
 };
 
 function addBombs() {
-  var currentTotalBombs = sizeLookup[`${size}`].totalBombs;
+  var currentTotalBombs = sizeLookup[size].totalBombs;
+
   while (currentTotalBombs !== 0) {
     var row = Math.floor(Math.random() * size);
     var col = Math.floor(Math.random() * size);
-    var currentCell = board[row][col]
+    var currentCell = board[row][col];
+
     if (!currentCell.bomb){
-      currentCell.bomb = true
-      currentTotalBombs -= 1
+      currentCell.bomb = true;
+      currentTotalBombs -= 1;
     }
   }
 };
 
 function getWinner() {
-  for (var row = 0; row<board.length; row++) {
-    for (var col = 0; col<board[0].length; col++) {
+  for (var row = 0; row < board.length; row++) {
+    for (var col = 0; col < board[0].length; col++) {
       var cell = board[row][col];
       if (!cell.revealed && !cell.bomb) return false;
     }
-  } 
+  }
   return true;
 };
 
 function render() {
-  document.getElementById('bomb-counter').innerText = bombCount.toString().padStart(3, '0');
-  var seconds = timeElapsed % 60;
+  document.getElementById('bomb-counter').innerText =
+    bombCount.toString().padStart(3, '0');
+
   var tdList = Array.from(document.querySelectorAll('[data-row]'));
+
   tdList.forEach(function(td) {
     var rowIdx = parseInt(td.getAttribute('data-row'));
     var colIdx = parseInt(td.getAttribute('data-col'));
     var cell = board[rowIdx][colIdx];
+
     if (cell.flagged) {
       td.innerHTML = flagImage;
     } else if (cell.revealed) {
       if (cell.bomb) {
         td.innerHTML = bombImage;
       } else if (cell.adjBombs) {
-        td.className = 'revealed'
+        td.className = 'revealed';
         td.style.color = colors[cell.adjBombs];
         td.textContent = cell.adjBombs;
       } else {
-        td.className = 'revealed'
+        td.className = 'revealed';
       }
     } else {
       td.innerHTML = '';
     }
   });
+
   if (hitBomb) {
-    document.getElementById('reset').innerHTML = '<img src=images/dead-face.png>';
+    document.getElementById('reset').innerHTML =
+      '<img src=images/dead-face.png>';
+
     runCodeForAllCells(function(cell) {
       if (!cell.bomb && cell.flagged) {
-        var td = document.querySelector(`[data-row="${cell.row}"][data-col="${cell.col}"]`);
+        var td = document.querySelector(
+          `[data-row="${cell.row}"][data-col="${cell.col}"]`
+        );
         td.innerHTML = wrongBombImage;
       }
     });
+
   } else if (winner) {
-    document.getElementById('reset').innerHTML = '<img src=images/cool-face.png>';
+    document.getElementById('reset').innerHTML =
+      '<img src=images/cool-face.png>';
     clearInterval(timerId);
   }
 };
